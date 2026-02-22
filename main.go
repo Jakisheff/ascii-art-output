@@ -6,14 +6,16 @@ import (
 	"strings"
 )
 
-// usage выводит инструкцию по использованию программы
 func usage() {
 	fmt.Println("Usage: go run . [OPTION] [STRING] [BANNER]\n\nEX: go run . --output=<fileName.txt> something standard")
 }
 
 func main() {
-	// Проверка на минимальное и максимальное количество аргументов
-	if len(os.Args) < 2 || len(os.Args) > 4 {
+	// Отрезаем имя программы, оставляем только то, что ввел пользователь
+	args := os.Args[1:]
+
+	// Проверяем количество аргументов (от 1 до 3)
+	if len(args) == 0 || len(args) > 3 {
 		usage()
 		return
 	}
@@ -22,85 +24,69 @@ func main() {
 	var input string
 	bannerName := "standard"
 
-	// Индекс, где находится введенный текст (по умолчанию 1)
-	textIndex := 1
-
-	// Проверяем, передан ли флаг --output
-	firstArg := os.Args[1]
-	if strings.HasPrefix(firstArg, "--output=") {
-		outputFile = strings.TrimPrefix(firstArg, "--output=")
+	// 1. Пытаемся найти флаг --output
+	if strings.HasPrefix(args[0], "--output=") {
+		outputFile = strings.TrimPrefix(args[0], "--output=")
 		if outputFile == "" {
-			// Если после = ничего нет (просто --output=)
 			usage()
 			return
 		}
-		// Так как первый аргумент — это флаг --output, текст сдвигается на индекс 2
-		textIndex = 2
-	} else if strings.HasPrefix(firstArg, "--") {
-		// Если это неизвестный флаг (например, --test)
+		// Убираем обработанный флаг из списка
+		args = args[1:]
+	} else if strings.HasPrefix(args[0], "--") {
 		usage()
 		return
 	}
 
-	// Если аргументов больше нет, но текст должен быть
-	if textIndex >= len(os.Args) {
+	// 2. После флага первым делом должен идти текст
+	if len(args) == 0 {
 		usage()
 		return
 	}
+	input = args[0]
+	args = args[1:] // Убираем текст из списка
 
-	// Получаем введенный текст
-	input = os.Args[textIndex]
-
-	// Если есть следующий аргумент, то это шаблон (баннер)
-	if textIndex+1 < len(os.Args) {
-		bannerName = strings.TrimSuffix(os.Args[textIndex+1], ".txt") // Убираем .txt, если передали
+	// 3. Если что-то осталось — это название баннера
+	if len(args) > 0 {
+		bannerName = strings.TrimSuffix(args[0], ".txt")
 	}
 
-	// Если передали слишком много аргументов после текста и баннера
-	if textIndex+2 < len(os.Args) {
-		usage()
-		return
-	}
-
-	// Если текст пустой, программа завершится
+	// 4. Проверки и логика
 	if input == "" {
 		return
 	}
 
-	// Проверяем, что текст содержит только допустимые ASCII символы
 	if !isASCII(input) {
 		fmt.Println("error: non-ASCII symbol detected")
 		return
 	}
 
-	// Загружаем хэш файла и проверяем на изменения
+	// Загрузка и конвертация (эти функции должны быть в твоем проекте)
 	if err := VerifyBannerHash(bannerName); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// Загружаем баннер
 	banner, err := ReadBanner(bannerName)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// Выводим текст в виде ASCII-графики
 	output := ConvertToASCII(input, banner)
 
-	// Записываем результат: в файл или в консоль
+	// 5. Сохранение результата с теми самыми правами 0644
 	if outputFile != "" {
-		// ВОТ ЗДЕСЬ МЫ УБРАЛИ 0644 И ПОСТАВИЛИ os.ModePerm
-		err := os.WriteFile(outputFile, []byte(output), os.ModePerm)
+		// Мы (6) пишем/читаем, остальные (4) только читают.
+		err := os.WriteFile(outputFile, []byte(output), 0644)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 		}
 	}
+
 	fmt.Print(output)
 }
 
-// isASCII проверяет, состоит ли строка только из печатных символов ASCII
 func isASCII(str string) bool {
 	for _, char := range str {
 		if char < 32 || char > 126 {

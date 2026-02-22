@@ -91,7 +91,8 @@ func main() {
 
 	// Записываем результат: в файл или в консоль
 	if outputFile != "" {
-		err := os.WriteFile(outputFile, []byte(output), 0644)
+		// ВОТ ЗДЕСЬ МЫ УБРАЛИ 0644 И ПОСТАВИЛИ os.ModePerm
+		err := os.WriteFile(outputFile, []byte(output), os.ModePerm)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 		}
